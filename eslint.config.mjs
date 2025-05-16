@@ -17,6 +17,9 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...tseslint.configs.recommended,
+  js.configs.recommended,
+  prettier,
   {
     ignores: ["dist", ".eslintrc.cjs", "node_modules/*"],
   },
@@ -69,6 +72,7 @@ const eslintConfig = [
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
+          vars: "all",
           varsIgnorePattern: "^_",
           argsIgnorePattern: "^_",
           ignoreRestSiblings: true,
@@ -88,9 +92,6 @@ const eslintConfig = [
       "import/no-unresolved": "error",
     },
   },
-  ...tseslint.configs.recommended,
-  js.configs.recommended,
-  prettier,
 ];
 
 export default eslintConfig;

@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       allowedOrigins: ["localhost", "localhost:8080", "localhost:3000"],
     },
+    optimizePackageImports: ["@chakra-ui/react"],
   },
 };
 

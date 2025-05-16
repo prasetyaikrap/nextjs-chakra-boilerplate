@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { ReactNode } from "react";
 
+import { AppProviders } from "@/components/layouts/AppProviders";
 import { baseMetadata } from "@/configs/metadata";
 
 const sans = Geist({
@@ -29,11 +30,11 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning={true}>
       <body
         className={`${sans.variable} ${sandMono.variable} ${inter.variable} antialiased`}
       >
-        {children}
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );
