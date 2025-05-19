@@ -10,7 +10,7 @@ export function AppProviders({
 }>) {
   return (
     <Provider>
-      <Container minHeight="100vh" maxWidth="2560px">
+      <Container minHeight="100vh" maxWidth="2560px" px="0">
         {children}
       </Container>
     </Provider>

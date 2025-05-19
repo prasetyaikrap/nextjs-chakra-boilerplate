@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { ReactNode } from "react";
 
-import { AppProviders } from "@/components/layouts/AppProviders";
+import { AppProviders } from "@/components/layouts/app-providers";
 import { baseMetadata } from "@/configs/metadata";
 
 const sans = Geist({
@@ -30,7 +30,7 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning={true}>
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${sans.variable} ${sandMono.variable} ${inter.variable} antialiased`}
       >
