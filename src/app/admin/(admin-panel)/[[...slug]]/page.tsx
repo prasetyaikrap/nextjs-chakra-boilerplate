@@ -11,7 +11,7 @@ export async function generateMetadata({
 
   const pageMeta: Metadata | undefined = match(slug)
     .with(P.nullish, () => ({ title: "Admin Panel - Dashboard" }))
-    .otherwise(() => undefined);
+    .otherwise(() => ({ title: "Admin Panel" }));
 
   return {
     ...pageMeta,
