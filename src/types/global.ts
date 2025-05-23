@@ -15,3 +15,10 @@ export type GenerateMetadataProps = {
   params: Promise<Params>;
   searchParams: Promise<SearchParams>;
 };
+
+export type UserProfileData = {
+  id: string;
+  name: string;
+  email: string;
+  permissions: string[];
+};

@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { ReactNode } from "react";
 
-import { AppProviders } from "@/components/layouts/app-providers";
+import AppProviders from "@/components/layouts/app-providers";
 import { baseMetadata } from "@/configs/metadata";
 
 const sans = Geist({

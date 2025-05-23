@@ -1,0 +1,301 @@
+openapi: 3.0.0
+info:
+  title: API Service
+  description: Default API Service
+  version: 1.0.0
+  contact:
+    email: prasetya.ikrapriyadi@gmail.com
+servers:
+  - url: ""
+    description: ""
+tags:
+  - name: Base API
+    description: Base API Endpoint
+  - name: Authentication
+    description: Authentication API Endpoint
+
+paths:
+  # Base
+  /hello:
+    get:
+      tags:
+        - Base API
+      summary: Base Endpoint to say hello
+      description: Base Endpoint to say hello
+      operationId: getHello
+      responses:
+        "200":
+          $ref: "#/components/schemas/BaseResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/BaseErrorResponse"
+
+  # Authentications
+  /v1/authentications:
+    post:
+      tags:
+        - Authentication
+      summary: Login Admin User
+      description: Login User as an Administrator
+      operationId: postLoginAdmin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthenticationLoginPayload"
+      responses:
+        "200":
+          description: Success Login Admin response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticationLoginResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/BaseErrorResponse"
+    get:
+      tags:
+        - Authentication
+      summary: Verify Admin user from access token
+      description: Verify User Admin based on access token
+      operationId: getVerifyAdmin
+      responses:
+        "200":
+          description: Success Verify Admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticationVerifyResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/BaseErrorResponse"
+    put:
+      tags:
+        - Authentication
+      summary: Renew token Admin user
+      description: Renew access token for expired token for User Administrator
+      operationId: putRenewAdmin
+      responses:
+        "200":
+          description: Success Renew Admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticationRenewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/BaseErrorResponse"
+    delete:
+      tags:
+        - Authentication
+      summary: Logout Admin user
+      description: Logout User Admin and removing session
+      operationId: deleteLogoutAdmin
+      responses:
+        "200":
+          description: Success Logout Admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticationLogoutResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/BaseErrorResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    BaseMetadata:
+      type: object
+      required:
+        [
+          total_rows,
+          current_page,
+          total_page,
+          per_page,
+          previousCursor,
+          nextCursor,
+        ]
+      properties:
+        total_rows:
+          type: number
+        current_page:
+          type: number
+        total_page:
+          type: number
+        per_page:
+          type: number
+        previousCursor:
+          type: string
+        nextCursor:
+          type: string
+    BaseResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+    BaseResponses:
+      type: object
+      required: [success, message, metadata]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/BaseMetadata"
+    BaseErrorResponse:
+      type: object
+      required: [success, message, error]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        error:
+          type: object
+    BaseIdResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        data:
+          type: object
+          required: [id]
+          properties:
+            id:
+              type: string
+        success:
+          type: boolean
+        message:
+          type: string
+
+    # Authentications Schema
+    AuthenticationLoginPayload:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    AuthenticationLoginResponse:
+      allOf:
+        - $ref: "#/components/schemas/BaseResponse"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: object
+              required: [session_id_key, session_id]
+              properties:
+                session_id_key:
+                  type: string
+                session_id:
+                  type: string
+    AuthenticationVerifyResponse:
+      allOf:
+        - $ref: "#/components/schemas/BaseResponse"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: object
+              required: [session_id_key, session_id]
+              properties:
+                session_id_key:
+                  type: string
+                session_id:
+                  type: string
+    AuthenticationRenewResponse:
+      allOf:
+        - $ref: "#/components/schemas/BaseResponse"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: object
+              required: [session_id_key, session_id]
+              properties:
+                session_id_key:
+                  type: string
+                session_id:
+                  type: string
+    AuthenticationLogoutResponse:
+      allOf:
+        - $ref: "#/components/schemas/BaseResponse"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: object
+              required: [session_id_key, session_id]
+              properties:
+                session_id_key:
+                  type: string
+                session_id:
+                  type: string
+
+  responses:
+    BaseResponse:
+      description: Base Response Object
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BaseResponse"
+    BaseResponses:
+      description: Base Responses Object
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BaseResponses"
+    BaseErrorResponse:
+      description: Base Error Response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BaseErrorResponse"
+    Unauthorized:
+      description: Unauthorized Access
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BaseErrorResponse"
+    NotFound:
+      description: Service tidak ditemukan
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BaseErrorResponse"

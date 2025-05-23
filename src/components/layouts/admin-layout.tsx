@@ -11,20 +11,32 @@ import {
   LinkOverlay,
   Span,
   Stack,
+  useBreakpointValue,
 } from "@chakra-ui/react";
+import { CanAccess, useMenu } from "@refinedev/core";
 import NextLink from "next/link";
 import { ReactNode, useEffect, useState } from "react";
-
-import useAdminMenu from "@/hooks/useAdminMenu";
-import { MenuProviderProps } from "@/providers/admin-providers/type";
 
 export default function AdminLayout({
   children,
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const adminMenuProps = useAdminMenu();
-  const { collapsed } = adminMenuProps;
+  const refineMenu = useMenu();
+  const [collapsed, setCollapsed] = useState(false);
+  const isSmallScreen = useBreakpointValue({
+    base: true,
+    sm: true,
+    md: true,
+    lg: false,
+    xl: false,
+    "2xl": false,
+  });
+
+  useEffect(() => {
+    if (isSmallScreen === undefined) return;
+    setCollapsed(isSmallScreen);
+  }, [isSmallScreen]);
 
   return (
     <Stack
@@ -34,19 +46,19 @@ export default function AdminLayout({
       pl={collapsed ? "90px" : "300px"}
       transition="all ease .5s"
     >
-      <Header adminMenuProps={adminMenuProps} />
-      <Sidebar adminMenuProps={adminMenuProps} />
+      <Header menuProps={refineMenu} collapsed={collapsed} />
+      <Sidebar menuProps={refineMenu} collapsed={collapsed} />
       <Container p="16px">{children}</Container>
     </Stack>
   );
 }
 
 type HeaderProps = {
-  adminMenuProps: ReturnType<typeof useAdminMenu>;
+  menuProps: ReturnType<typeof useMenu>;
+  collapsed: boolean;
 };
 
-function Header({ adminMenuProps }: HeaderProps) {
-  const { collapsed } = adminMenuProps;
+function Header({ collapsed }: HeaderProps) {
   const handleLogout = () => {};
   return (
     <Stack
@@ -72,11 +84,13 @@ function Header({ adminMenuProps }: HeaderProps) {
 }
 
 type SideBarProps = {
-  adminMenuProps: ReturnType<typeof useAdminMenu>;
+  menuProps: ReturnType<typeof useMenu>;
+  collapsed: boolean;
 };
 
-function Sidebar({ adminMenuProps }: SideBarProps) {
-  const { collapsed, items: menuItems } = adminMenuProps;
+function Sidebar({ menuProps, collapsed }: SideBarProps) {
+  const { menuItems } = menuProps;
+  const menuGroup = menuItems.filter((item) => item.meta?.group === "admins");
 
   return (
     <Stack
@@ -122,11 +136,12 @@ function Sidebar({ adminMenuProps }: SideBarProps) {
         </ChakraLink>
       </Stack>
       <Stack>
-        {menuItems.map((item) => (
+        {menuGroup.map((item) => (
           <MenuItem
             key={item.name}
             item={item}
-            adminMenuProps={adminMenuProps}
+            collapsed={collapsed}
+            menuProps={menuProps}
           />
         ))}
       </Stack>
@@ -135,86 +150,102 @@ function Sidebar({ adminMenuProps }: SideBarProps) {
 }
 
 type MenuItemProps = {
-  item: MenuProviderProps;
-  adminMenuProps: ReturnType<typeof useAdminMenu>;
+  item: ReturnType<typeof useMenu>["menuItems"][number];
+  menuProps: ReturnType<typeof useMenu>;
+  collapsed: boolean;
   parents?: string[];
 };
 
-function MenuItem({ item, adminMenuProps, parents = [] }: MenuItemProps) {
-  const { collapsed, selectedKeys, toggleSelectedKeys } = adminMenuProps;
+function MenuItem({ item, menuProps, collapsed, parents = [] }: MenuItemProps) {
+  const { selectedKey, defaultOpenKeys } = menuProps;
   const fontSize = "1rem";
-  const isSelected = selectedKeys.includes(item.name);
-  const [accordionValues, setAccordionValues] = useState<string[]>();
+  const isSelected = selectedKey === item.key;
+  const hasChildren = item.children.length > 0;
 
-  useEffect(() => {
-    setAccordionValues(selectedKeys.filter((key) => key === item.name));
-  }, [item.name, selectedKeys]);
-
-  if (item.children) {
+  if (hasChildren) {
     return (
-      <Accordion.Root
+      <CanAccess
         key={item.name}
-        variant="plain"
-        value={accordionValues}
-        onValueChange={(e) => setAccordionValues(e.value)}
-        collapsible
+        resource={item.name}
+        action="list"
+        params={{
+          resource: item,
+        }}
       >
-        <Accordion.Item value={item.name}>
-          <Accordion.ItemTrigger
-            fontSize={fontSize}
-            p="10px 20px"
-            cursor="pointer"
-            _hover={{ bgColor: "blue.50" }}
-          >
-            <Span
-              display="flex"
-              flexDir="row"
-              flex="1"
-              gap="8px"
-              justifyContent={collapsed ? "center" : "start"}
-              alignItems="center"
+        <Accordion.Root
+          key={item.name}
+          variant="plain"
+          defaultValue={defaultOpenKeys}
+          collapsible
+        >
+          <Accordion.Item value={item.name}>
+            <Accordion.ItemTrigger
+              fontSize={fontSize}
+              p="10px 20px"
+              cursor="pointer"
+              _hover={{ bgColor: "blue.50" }}
             >
-              {item.icon}
-              {!collapsed && item.label}
-            </Span>
-            <Accordion.ItemIndicator />
-          </Accordion.ItemTrigger>
-          <Accordion.ItemContent>
-            <Accordion.ItemBody py="0" pl="16px" pt="8px" spaceY="8px">
-              {item.children.map((childItem) => (
-                <MenuItem
-                  key={childItem.name}
-                  item={childItem}
-                  adminMenuProps={adminMenuProps}
-                  parents={[...parents, item.name]}
-                />
-              ))}
-            </Accordion.ItemBody>
-          </Accordion.ItemContent>
-        </Accordion.Item>
-      </Accordion.Root>
+              <Span
+                display="flex"
+                flexDir="row"
+                flex="1"
+                gap="8px"
+                justifyContent={collapsed ? "center" : "start"}
+                alignItems="center"
+              >
+                {item.icon}
+                {!collapsed && item.label}
+              </Span>
+              <Accordion.ItemIndicator />
+            </Accordion.ItemTrigger>
+            <Accordion.ItemContent>
+              <Accordion.ItemBody py="0" pl="16px" pt="8px" spaceY="8px">
+                {item.children.map((childItem) => (
+                  <MenuItem
+                    key={childItem.name}
+                    item={childItem}
+                    menuProps={menuProps}
+                    parents={[...parents, item.name]}
+                    collapsed={collapsed}
+                  />
+                ))}
+              </Accordion.ItemBody>
+            </Accordion.ItemContent>
+          </Accordion.Item>
+        </Accordion.Root>
+      </CanAccess>
     );
   }
 
   return (
-    <LinkBox
+    <CanAccess
       key={item.name}
-      display="flex"
-      flexDir="row"
-      alignItems="center"
-      gap="8px"
-      p="10px 20px"
-      fontSize={fontSize}
-      justifyContent={collapsed ? "center" : "start"}
-      bgColor={isSelected ? "blue.50" : "transparent"}
-      _hover={{ bgColor: "blue.50" }}
-      transition="all ease .5s"
-      onClick={() => {
-        toggleSelectedKeys([...parents, item.name]);
+      resource={item.name}
+      action="list"
+      params={{
+        resource: item,
       }}
     >
-      {item.icon}
-      {!collapsed && <LinkOverlay href={item.list}>{item.label}</LinkOverlay>}
-    </LinkBox>
+      <LinkBox
+        key={item.name}
+        display="flex"
+        flexDir="row"
+        alignItems="center"
+        gap="8px"
+        p="10px 20px"
+        fontSize={fontSize}
+        justifyContent={collapsed ? "center" : "start"}
+        bgColor={isSelected ? "blue.50" : "transparent"}
+        _hover={{ bgColor: "blue.50" }}
+        transition="all ease .5s"
+      >
+        {item.meta?.icon}
+        {!collapsed && (
+          <LinkOverlay asChild>
+            <NextLink href={item.list as string}>{item.meta?.label}</NextLink>
+          </LinkOverlay>
+        )}
+      </LinkBox>
+    </CanAccess>
   );
 }
