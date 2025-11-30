@@ -2,6 +2,8 @@ import type { RequestInit } from "next/dist/server/web/spec-extension/request";
 import { redirect } from "next/navigation";
 import { COOKIES } from "@/src/configs/cookies";
 import { ENVS } from "@/src/configs/envs";
+import { authRouter } from "@/src/providers/data/api/auth-schema";
+import type { AuthRenewResponse } from "@/src/providers/data/api/type";
 import { createFetcherInstance } from "@/src/providers/rest-client/handler";
 import { HTTPError } from "@/src/utils/exceptions";
 import {
@@ -10,8 +12,6 @@ import {
   setCookies,
 } from "@/src/utils/server-action";
 import initRestClient from "../rest-client";
-import { authRouter } from "./api/auth-schema";
-import type { AuthRenewResponse } from "./api/type";
 
 function fetcherInstance() {
   const fetcherInstance = createFetcherInstance();
@@ -27,10 +27,10 @@ async function authRequestInterceptor(config: RequestInit) {
   const adjustedConfig: RequestInit = {
     ...config,
     headers: {
-      ...config.headers,
       "X-Client-Id": ENVS.APP_ID,
       "X-Client-Version": ENVS.APP_VERSION,
       Authorization: `Bearer ${accessToken?.value ?? ""}`,
+      ...config.headers,
     },
   };
 
@@ -41,7 +41,9 @@ async function authenticationResponseInterceptor(
   res: Response,
   originalRequest: RequestInit,
 ) {
-  if (res.status === 401) {
+  const isRenewToken =
+    new Headers(originalRequest.headers).get("X-Renew-Token") === "true";
+  if (res.status === 401 && !isRenewToken) {
     const authService = initRestClient({
       baseUrl: ENVS.APP_AUTH_SERVICE_HOST,
       routers: authRouter,
@@ -82,7 +84,7 @@ async function authenticationResponseInterceptor(
           Authorization: `Bearer ${newAccessToken}`,
         },
       };
-      return await fetcher(res.url, newRequest);
+      return await defaultFetcher(res.url, newRequest);
     } catch {
       await deleteCookies([COOKIES.accessToken]);
       await deleteCookies([COOKIES.refreshToken]);
@@ -94,4 +96,4 @@ async function authenticationResponseInterceptor(
   return res;
 }
 
-export const fetcher = fetcherInstance();
+export const defaultFetcher = fetcherInstance();

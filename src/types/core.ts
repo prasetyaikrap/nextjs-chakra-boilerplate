@@ -44,3 +44,9 @@ export type ExtendedColumnDef<T extends RowData = RowData> = {
   textAlign?: string;
   format?: string;
 } & ColumnDef<T>;
+
+export type AppError<TError = unknown> = {
+  type: string;
+  message: string;
+  error?: TError;
+};

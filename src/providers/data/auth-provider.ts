@@ -1,7 +1,7 @@
 import { match } from "ts-pattern";
 import { ENVS } from "@/src/configs/envs";
+import { defaultFetcher } from "@/src/providers/fetcher";
 import initRestClient from "../rest-client";
-import type { RestResponse } from "../rest-client/type";
 import { authRouter } from "./api/auth-schema";
 import type {
   AuthExchangePayload,
@@ -14,13 +14,7 @@ import type {
   AuthRenewResponse,
   AuthVerifyResponse,
 } from "./api/type";
-import { fetcher } from "./fetcher";
-import {
-  generateParams,
-  responseError,
-  responseOk,
-  responsesOk,
-} from "./handler";
+import { responseError, responseOk } from "./handler";
 import type { DataProvider } from "./type";
 
 type ResourceKeys =
@@ -36,44 +30,20 @@ export function authProvider(): DataProvider<ResourceKeys> {
   const service = initRestClient({
     baseUrl: ENVS.APP_AUTH_SERVICE_HOST,
     routers: authRouter,
-    httpClient: fetcher,
+    httpClient: defaultFetcher,
   });
 
   return {
-    getList: async ({ resource, filters, sorters, pagination, meta }) => {
-      const query = generateParams(filters, sorters, pagination, {
-        transformFilters: meta?.transformFilters,
-        transformSorters: meta?.transformSorters,
-        paginationMode: meta?.paginationMode,
-        filterMode: meta?.filterMode,
-      });
-      return match({ resource })
-        .with({ resource: "test-posts" }, () =>
-          service
-            .testPosts({ query })
-            .then((res) => {
-              const response: RestResponse = {
-                ...res,
-                body: {
-                  success: true,
-                  message: "Posts fetched successfully",
-                  data: res.body,
-                  metadata: {
-                    total_rows: 100,
-                    total_page: 10,
-                    current_page: 1,
-                    per_page: 10,
-                    previousCursor: "",
-                    nextCursor: "",
-                  },
-                },
-              };
-
-              return responsesOk<any>(response);
-            })
-            .catch(responseError),
-        )
-        .otherwise(() => Promise.reject("Method not implemented"));
+    getList: async ({ resource }) => {
+      // const query = generateParams(filters, sorters, pagination, {
+      //   transformFilters: meta?.transformFilters,
+      //   transformSorters: meta?.transformSorters,
+      //   paginationMode: meta?.paginationMode,
+      //   filterMode: meta?.filterMode,
+      // });
+      return match({ resource }).otherwise(() =>
+        Promise.reject("Method not implemented"),
+      );
     },
     getOne: async ({ resource }) => {
       return match({ resource })

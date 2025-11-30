@@ -167,15 +167,4 @@ export const authRouter = contract({
       500: BaseErrorResponse,
     },
   },
-  testPosts: {
-    method: "GET",
-    path: "/posts",
-    summary: "Get Test Posts",
-    response: {
-      200: BaseResponse,
-      400: BaseErrorResponse,
-      401: BaseErrorResponse,
-      500: BaseErrorResponse,
-    },
-  },
 });

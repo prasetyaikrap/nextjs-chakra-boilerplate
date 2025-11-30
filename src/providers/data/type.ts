@@ -1,5 +1,5 @@
 import type { AxiosInstance, AxiosRequestConfig } from "axios";
-import type { BaseKey, BaseRecord } from "@/src/types/core";
+import type { BaseKey } from "@/src/types/core";
 import type {
   CrudFilter,
   CrudFilters,
@@ -29,14 +29,14 @@ export type InitRestClientProps = {
   httpClient?: AxiosInstance;
 };
 
-export type ResponseBody<TData extends BaseRecord = BaseRecord> = {
+export type ResponseBody<TData = unknown> = {
   success: boolean;
   message: string;
   data: TData;
   error?: Error;
 };
 
-export type ResponsesBody<TData extends BaseRecord = BaseRecord> = {
+export type ResponsesBody<TData = unknown> = {
   success: boolean;
   message: string;
   data: TData[];
@@ -82,7 +82,7 @@ export type GetListParams<TResource extends string = string> = {
 
 export type GetOneParams<TResource extends string = string> = {
   resource: TResource;
-  id: BaseKey;
+  id?: BaseKey;
   meta?: MetaQuery;
 };
 
@@ -109,13 +109,8 @@ type DeleteParams<TResource extends string = string> = {
   meta?: MetaQuery;
 };
 
-export type GetListResponse<TData extends BaseRecord = BaseRecord> =
-  ResponsesBody<TData>;
-export type GetOneResponse<TData extends BaseRecord = BaseRecord> =
-  ResponseBody<TData>;
-export type CreateResponse<TData extends BaseRecord = BaseRecord> =
-  ResponseBody<TData>;
-export type UpdateResponse<TData extends BaseRecord = BaseRecord> =
-  ResponseBody<TData>;
-export type DeleteResponse<TData extends BaseRecord = BaseRecord> =
-  ResponseBody<TData>;
+export type GetListResponse<TData = unknown> = ResponsesBody<TData>;
+export type GetOneResponse<TData = unknown> = ResponseBody<TData>;
+export type CreateResponse<TData = unknown> = ResponseBody<TData>;
+export type UpdateResponse<TData = unknown> = ResponseBody<TData>;
+export type DeleteResponse<TData = unknown> = ResponseBody<TData>;
