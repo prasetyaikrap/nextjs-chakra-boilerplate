@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -9,8 +10,12 @@ const nextConfig: NextConfig = {
     serverActions: {
       allowedOrigins: ["localhost", "localhost:8080", "localhost:3000"],
     },
-    // optimizePackageImports: ["@chakra-ui/react"],
+    optimizePackageImports: ["@chakra-ui/react"],
   },
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin({
+  requestConfig: "./src/providers/i18n/index.ts",
+});
+
+export default withNextIntl(nextConfig);
