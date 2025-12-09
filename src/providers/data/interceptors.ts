@@ -1,28 +1,17 @@
-import type { RequestInit } from "next/dist/server/web/spec-extension/request";
 import { redirect } from "next/navigation";
 import { COOKIES } from "@/src/configs/cookies";
 import { ENVS } from "@/src/configs/envs";
-import { authRouter } from "@/src/providers/data/api/auth-schema";
-import type { AuthRenewResponse } from "@/src/providers/data/api/type";
-import { createFetcherInstance } from "@/src/providers/rest-client/handler";
 import { HTTPError } from "@/src/utils/exceptions";
 import {
   deleteCookies,
   getCookies,
   setCookies,
 } from "@/src/utils/server-action";
-import initRestClient from "../rest-client";
+import RestClient from "../rest-client";
+import { authRouter } from "./api/auth-schema";
+import type { AuthRenewResponse } from "./api/type";
 
-function fetcherInstance() {
-  const fetcherInstance = createFetcherInstance();
-
-  fetcherInstance.addRequestInterceptor(authRequestInterceptor);
-  fetcherInstance.addResponseInterceptor(authenticationResponseInterceptor);
-
-  return fetcherInstance.fetch;
-}
-
-async function authRequestInterceptor(config: RequestInit) {
+export async function authRequestInterceptor(config: RequestInit) {
   const [accessToken] = await getCookies([COOKIES.accessToken]);
   const adjustedConfig: RequestInit = {
     ...config,
@@ -37,17 +26,18 @@ async function authRequestInterceptor(config: RequestInit) {
   return adjustedConfig;
 }
 
-async function authenticationResponseInterceptor(
+export async function authResponseInterceptor(
   res: Response,
   originalRequest: RequestInit,
 ) {
   const isRenewToken =
     new Headers(originalRequest.headers).get("X-Renew-Token") === "true";
   if (res.status === 401 && !isRenewToken) {
-    const authService = initRestClient({
+    const authService = new RestClient({
       baseUrl: ENVS.APP_AUTH_SERVICE_HOST,
       routers: authRouter,
-    });
+    }).init();
+
     const [refreshToken] = await getCookies([COOKIES.refreshToken]);
     if (!refreshToken?.value) {
       return res;
@@ -73,8 +63,8 @@ async function authenticationResponseInterceptor(
 
       const newAccessToken = data.access_token;
       const newRefreshToken = data.refresh_token;
-      await setCookies([{ name: COOKIES.accessToken, value: newAccessToken }]);
       await setCookies([
+        { name: COOKIES.accessToken, value: newAccessToken },
         { name: COOKIES.refreshToken, value: newRefreshToken },
       ]);
       const newRequest: RequestInit = {
@@ -84,10 +74,9 @@ async function authenticationResponseInterceptor(
           Authorization: `Bearer ${newAccessToken}`,
         },
       };
-      return await defaultFetcher(res.url, newRequest);
+      return await fetch(res.url, newRequest);
     } catch {
-      await deleteCookies([COOKIES.accessToken]);
-      await deleteCookies([COOKIES.refreshToken]);
+      await deleteCookies([COOKIES.accessToken, COOKIES.refreshToken]);
 
       redirect("/login");
     }
@@ -95,5 +84,3 @@ async function authenticationResponseInterceptor(
 
   return res;
 }
-
-export const defaultFetcher = fetcherInstance();

@@ -28,8 +28,56 @@ export function responsesOk<T extends BaseRecord>(res: RestResponse) {
   return responsesBody;
 }
 
-export function responseError(err: RestResponse) {
-  return Promise.reject(err.body);
+export function responseError(err: RestResponse | HTTPError) {
+  if (err instanceof HTTPError) {
+    return Promise.reject({
+      success: false,
+      message: err.message,
+      data: null,
+      error: err.error,
+    });
+  }
+  const responseErrorBody = err.body;
+  return Promise.reject({
+    success: false,
+    message: (responseErrorBody as any)?.message || "Something went wrong",
+    data: null,
+    error: responseErrorBody,
+  });
+}
+
+export function responsesError(err: RestResponse | HTTPError) {
+  if (err instanceof HTTPError) {
+    return Promise.reject({
+      success: false,
+      message: err.message,
+      data: null,
+      metadata: {
+        total_rows: 0,
+        total_page: 0,
+        current_page: 0,
+        per_page: 0,
+        previousCursor: "",
+        nextCursor: "",
+      },
+      error: err.error,
+    });
+  }
+  const responsesErrorBody = err.body;
+  return Promise.reject({
+    success: false,
+    message: (responsesErrorBody as any)?.message || "Something went wrong",
+    data: null,
+    metadata: {
+      total_rows: 0,
+      total_page: 0,
+      current_page: 0,
+      per_page: 0,
+      previousCursor: "",
+      nextCursor: "",
+    },
+    error: responsesErrorBody,
+  });
 }
 
 export function generateParams(

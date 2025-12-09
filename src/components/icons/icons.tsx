@@ -1,4 +1,4 @@
-import { Icon, IconProps } from "@chakra-ui/react";
+import { Icon, type IconProps } from "@chakra-ui/react";
 
 export function FlagIndonesia(props: IconProps) {
   return (
@@ -9,6 +9,7 @@ export function FlagIndonesia(props: IconProps) {
         height="32"
         viewBox="0 0 32 32"
       >
+        <title>Indonesia Flag</title>
         <path
           d="M31,8c0-2.209-1.791-4-4-4H5c-2.209,0-4,1.791-4,4v9H31V8Z"
           fill="#ea3323"
@@ -40,6 +41,7 @@ export function FlagEnglish(props: IconProps) {
         height="32"
         viewBox="0 0 32 32"
       >
+        <title>United Kingdom Flag</title>
         <rect
           x="1"
           y="4"

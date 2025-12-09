@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { authProvider } from "@/src/providers/authentications";
+import { AuthProvider } from "@/src/providers/authentications";
 
 type AuthenticatedProps = {
   children: ReactNode;
@@ -13,6 +13,7 @@ export async function Authenticated({
   resource = "",
   redirectTo,
 }: AuthenticatedProps) {
+  const authProvider = new AuthProvider();
   const { authenticated, redirectTo: authRedirect } = await authProvider.check({
     resource,
   });

@@ -37,10 +37,9 @@ export type RestResponse<T = unknown> = {
   headers: Headers;
 };
 
-export type InitRestClientProps<TRouter> = {
+export type RestClientProps<TRouter> = {
   baseUrl: string;
   routers: TRouter;
-  httpClient?: (input: RequestInfo, init?: RequestInit) => Promise<Response>;
 };
 
 export type HTTPError = Error & {
