@@ -1,4 +1,9 @@
-import type { ColumnDef, RowData } from "@tanstack/table-core";
+import type {
+  ColumnDef,
+  ColumnFilter,
+  ColumnSort,
+  RowData,
+} from "@tanstack/table-core";
 import type { IconType } from "react-icons/lib";
 
 export type BaseKey = string | number;
@@ -50,3 +55,11 @@ export type AppError<TError = unknown> = {
   message: string;
   error?: TError;
 };
+
+export type ExtendedColumnFilter = {
+  is_permanent?: boolean;
+} & ColumnFilter;
+
+export type ExtendedSorting = {
+  is_permanent?: boolean;
+} & ColumnSort;

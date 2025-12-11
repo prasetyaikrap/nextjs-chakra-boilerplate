@@ -54,11 +54,13 @@ export type CrudOperators =
 export type LogicalFilter = {
   field: string;
   value: any;
+  is_permanent?: boolean;
 };
 
 export type CrudSort = {
   field: string;
   order: "asc" | "desc";
+  is_permanent?: boolean;
 };
 
 export type CrudFilter = LogicalFilter;

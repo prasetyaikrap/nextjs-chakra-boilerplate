@@ -149,7 +149,10 @@ export default function Table<T extends BaseRecord = BaseRecord>({
           </Card.Header>
         )}
         <Card.Body>
-          <ChakraTable.ScrollArea w="full">
+          <ChakraTable.ScrollArea position="relative" w="full" minH="200px">
+            {(tableConfig.isLoading || tableConfig.isFetching) && (
+              <LoadingState />
+            )}
             <ChakraTable.Root
               data-testid={`component_table-${id}`}
               variant="outline"
@@ -199,21 +202,7 @@ export default function Table<T extends BaseRecord = BaseRecord>({
                 })}
               </ChakraTable.Header>
 
-              <ChakraTable.Body
-                position="relative"
-                height={tableConfig.isLoading ? "200px" : "auto"}
-              >
-                {(tableConfig.isLoading || tableConfig.isFetching) && (
-                  <ChakraTable.Row h="0" p="0">
-                    <ChakraTable.Cell
-                      colSpan={headerGroups[0]?.headers.length || 1}
-                      h="0"
-                      p="0"
-                    >
-                      <LoadingState />
-                    </ChakraTable.Cell>
-                  </ChakraTable.Row>
-                )}
+              <ChakraTable.Body position="relative">
                 {tableConfig.isDataEmpty && (
                   <ChakraTable.Row
                     id="empty-state-row"

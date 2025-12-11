@@ -1,5 +1,4 @@
-"use client";
-
+import { type UseQueryResult, useQuery } from "@tanstack/react-query";
 import {
   getCoreRowModel,
   getFilteredRowModel,
@@ -8,57 +7,81 @@ import {
   type TableOptions,
   useReactTable,
 } from "@tanstack/react-table";
-import { isEqual } from "lodash";
-import { useEffect, useRef, useState } from "react";
+import { isEqual, isNull, isUndefined } from "lodash";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { dataProviders } from "@/src/providers/data";
-import type { BaseRecord, CrudFilter, CrudSort, Pagination } from "@/src/types";
 import type {
   DataProvider,
-  MetaQuery,
-  ResponseBody,
+  GetListMetaQuery,
   ResponsesBody,
-} from "../providers/data/type";
+} from "@/src/providers/data/type";
+import type {
+  BaseRecord,
+  CrudFilter,
+  CrudSort,
+  ExtendedColumnFilter,
+  ExtendedSorting,
+  Pagination,
+} from "@/src/types";
+import { useIsFirstRender } from "./useFirstRender";
 
-export type UseTableProps<TData extends BaseRecord = BaseRecord> = {
-  providers?: ProviderProps;
-} & Pick<TableOptions<TData>, "columns"> &
-  Partial<Omit<TableOptions<TData>, "columns">>;
+export type UseTableProps<TQueryFnData extends BaseRecord = BaseRecord> = {
+  providers: ProviderProps;
+} & Pick<TableOptions<TQueryFnData>, "columns"> &
+  Partial<Omit<TableOptions<TQueryFnData>, "columns">>;
 
 type DataProviders = typeof dataProviders;
 type ExtractResourceKeys<T> = T extends DataProvider<infer R> ? R : never;
+type BaseQueryKey = {
+  resource?: ExtractResourceKeys<DataProviders[keyof DataProviders]>;
+  pagination?: Pagination;
+  filters?: CrudFilter[];
+  sorters?: CrudSort[];
+  meta?: GetListMetaQuery;
+};
+type QueryKey = ("table-data" | BaseQueryKey | unknown)[];
+type QueryData<TQueryFnData> = {
+  data: ResponsesBody<TQueryFnData>["data"];
+  metadata: ResponsesBody<TQueryFnData>["metadata"];
+};
+
+type QueryError = {
+  success: boolean;
+  data?: unknown;
+  message: string;
+  error?: unknown;
+};
 
 type ProviderProps = {
   dataProviderName?: keyof DataProviders;
   resource?: ExtractResourceKeys<DataProviders[keyof DataProviders]>;
   pagination?: Pagination;
   filters?: {
-    initial?: CrudFilter[];
-    permanent?: CrudFilter[];
+    initial?: Omit<CrudFilter, "is_permanent">[];
+    permanent?: Omit<CrudFilter, "is_permanent">[];
   };
   sorters?: {
-    initial?: CrudSort[];
-    permanent?: CrudSort[];
+    initial?: Omit<CrudSort, "is_permanent">[];
+    permanent?: Omit<CrudSort, "is_permanent">[];
   };
   syncWithLocation?: boolean;
-  meta?: MetaQuery;
+  meta?: GetListMetaQuery;
   queryOptions?: {
     enabled?: boolean;
   };
 };
 
-export type UseTableReturnType<TData extends BaseRecord = BaseRecord> = {
-  reactTable: Table<TData>;
+export type UseTableReturnType<
+  TQueryFnData extends BaseRecord = BaseRecord,
+  TError extends QueryError = QueryError,
+> = {
+  reactTable: Table<TQueryFnData>;
   core: {
-    tableQuery: {
-      data: Omit<ResponsesBody<TData>, "error"> | null;
-      error: Omit<ResponseBody<TData>, "data"> | null;
-      isLoading: boolean;
-      isFetching: boolean;
-      isError: boolean;
-      refetch: () => void;
-    };
+    tableQuery: UseQueryResult<QueryData<TQueryFnData>, TError>;
     result: {
-      data: TData[];
+      data: ResponsesBody<TQueryFnData>["data"];
+      metadata?: ResponsesBody<TQueryFnData>["metadata"];
       total: number;
     };
     pageCount: number;
@@ -75,87 +98,166 @@ export type UseTableReturnType<TData extends BaseRecord = BaseRecord> = {
 
 const fallbackEmptyArray: unknown[] = [];
 
-export function useTable<TData extends BaseRecord = BaseRecord>({
+export function useTable<TQueryFnData extends BaseRecord = BaseRecord>({
   providers,
   ...reactTableOptions
-}: UseTableProps<TData>): UseTableReturnType<TData> {
+}: UseTableProps<TQueryFnData>): UseTableReturnType<TQueryFnData> {
+  const searchParams = useSearchParams();
   const isFirstRender = useIsFirstRender();
-  const [isLoading, setIsLoading] = useState(true);
-  const [isFetching, setIsFetching] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [refetch, setRefetch] = useState(false);
-  const [pagination, setPagination] = useState<Pagination>({
-    pageSize: providers?.pagination?.pageSize ?? 10,
-    currentPage: providers?.pagination?.currentPage ?? 1,
+  const [pagination, setPagination] = useState<Pagination>(() => {
+    const pagination = {
+      pageSize: providers?.pagination?.pageSize ?? 10,
+      currentPage: providers?.pagination?.currentPage ?? 1,
+    };
+    if (providers?.syncWithLocation) {
+      if (searchParams.has("_page")) {
+        const page = Number(searchParams.get("_page"));
+        if (!Number.isNaN(page)) {
+          pagination.currentPage = page;
+        }
+      }
+      if (searchParams.has("_limit")) {
+        const limit = Number(searchParams.get("_limit"));
+        if (!Number.isNaN(limit)) {
+          pagination.pageSize = limit;
+        }
+      }
+    }
+    return pagination;
   });
-  const [filters, setFilters] = useState<CrudFilter[]>([
-    ...(providers?.filters?.initial ?? []),
-    ...(providers?.filters?.permanent ?? []),
-  ]);
-  const [sorters, setSorters] = useState<CrudSort[]>([
-    ...(providers?.sorters?.initial ?? []),
-    ...(providers?.sorters?.permanent ?? []),
-  ]);
-  const [error, setError] = useState<Omit<ResponseBody<TData>, "data"> | null>(
-    null,
-  );
-  const [data, setData] = useState<Omit<ResponsesBody<TData>, "error"> | null>(
-    null,
-  );
+  const [filters, setFilters] = useState<CrudFilter[]>(() => {
+    const initialFilters = providers?.filters?.initial ?? [];
+    const permanentFilters = providers?.filters?.permanent ?? [];
+    const filters: CrudFilter[] = [...initialFilters];
 
-  const isServerSide = Boolean(providers);
+    if (providers?.syncWithLocation) {
+      searchParams.entries().forEach(([key, value]) => {
+        if (["_page", "_limit", "_sort"].includes(key)) return;
+        if (isUndefined(value) || isNull(value)) return;
+        let parsedValue: string | number | boolean = value;
+        if (value === "true") {
+          parsedValue = true;
+        } else if (value === "false") {
+          parsedValue = false;
+        } else if (!Number.isNaN(Number(value))) {
+          parsedValue = Number(value);
+        }
 
-  useEffect(() => {
-    const isQueryEnabled = providers?.queryOptions?.enabled ?? true;
-    const dataProviderName = providers?.dataProviderName || "default";
-    const resource = providers?.resource;
-    if (!isServerSide || !isQueryEnabled || !resource) {
-      setIsLoading(false);
-      return;
+        const currentFilterIndex = filters.findIndex(
+          (filter) => filter.field === key,
+        );
+        if (currentFilterIndex > -1) {
+          filters[currentFilterIndex].value =
+            `${filters[currentFilterIndex].value},${parsedValue}`;
+        } else {
+          filters.push({
+            field: key,
+            value: parsedValue,
+          });
+        }
+      });
     }
 
-    // // Fetch data from data provider here based on providers props
-    setIsFetching(true);
-    setIsError(false);
-    dataProviders[dataProviderName]
-      .getList({
+    permanentFilters.forEach((permanentFilter) => {
+      const currentFilterIndex = filters.findIndex(
+        (filter) => filter.field === permanentFilter.field,
+      );
+      if (currentFilterIndex > -1) {
+        filters[currentFilterIndex].value = permanentFilter.value;
+        filters[currentFilterIndex].is_permanent = true;
+      } else {
+        filters.push({ ...permanentFilter, is_permanent: true });
+      }
+    });
+
+    return filters;
+  });
+  const [sorters, setSorters] = useState<CrudSort[]>(() => {
+    const initialSorters = providers?.sorters?.initial ?? [];
+    const permanentSorters = providers?.sorters?.permanent ?? [];
+    const sorters: CrudSort[] = [...initialSorters];
+
+    if (providers?.syncWithLocation) {
+      if (searchParams.has("_sort")) {
+        const sortParam = searchParams.getAll("_sort");
+        sortParam.forEach((param) => {
+          const paramName = param.replace(/^-/, ""); // remove starting "-"
+          const isDesc = param.startsWith("-");
+          const currentSorterIndex = sorters.findIndex(
+            (sorter) => sorter.field === paramName,
+          );
+          if (currentSorterIndex > -1) {
+            sorters[currentSorterIndex].order = isDesc ? "desc" : "asc";
+            sorters[currentSorterIndex].is_permanent = true;
+          } else {
+            sorters.push({
+              field: paramName,
+              order: isDesc ? "desc" : "asc",
+              is_permanent: true,
+            });
+          }
+        });
+      }
+    }
+
+    permanentSorters.forEach((permanentSorter) => {
+      const currentSorterIndex = sorters.findIndex(
+        (sorter) => sorter.field === permanentSorter.field,
+      );
+      if (currentSorterIndex > -1) {
+        sorters[currentSorterIndex].order = permanentSorter.order;
+      } else {
+        sorters.push(permanentSorter);
+      }
+    });
+
+    return sorters;
+  });
+
+  const isQueryEnabled = providers?.queryOptions?.enabled ?? true;
+  const dataProviderName = providers?.dataProviderName || "default";
+  const resource = providers?.resource;
+  const isServerSide = Boolean(providers);
+
+  const queryResult = useQuery<
+    QueryData<TQueryFnData>,
+    QueryError,
+    QueryData<TQueryFnData>,
+    QueryKey
+  >({
+    queryKey: [
+      "table-data",
+      {
         resource,
         pagination,
         filters,
         sorters,
-        meta: providers.meta,
-      })
-      .then((res) => {
-        setIsError(false);
-        setError(null);
-        setData({
-          success: res.success,
-          data: res.data as TData[],
-          message: res.message,
-          metadata: res.metadata,
+        meta: providers?.meta,
+      },
+    ],
+    queryFn: async ({ queryKey }) => {
+      const { resource, pagination, filters, sorters, meta } =
+        queryKey[1] as BaseQueryKey;
+      try {
+        const { data, metadata } = await dataProviders[
+          dataProviderName as keyof DataProviders
+        ].getList({
+          resource: resource as Exclude<typeof resource, undefined>,
+          pagination: pagination,
+          filters: filters,
+          sorters: sorters,
+          meta: meta,
         });
-      })
-      .catch((e: ResponseBody<TData>) => {
-        setIsError(true);
-        setError({ success: e.success, message: e.message, error: e.error });
-        setData(null);
-      })
-      .finally(() => {
-        setIsLoading(false);
-        setIsFetching(false);
-      });
-  }, [
-    providers?.queryOptions?.enabled,
-    providers?.dataProviderName,
-    providers?.resource,
-    pagination,
-    filters,
-    sorters,
-    refetch,
-  ]);
+        return { data: data as TQueryFnData[], metadata };
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    },
+    enabled: isServerSide && isQueryEnabled && Boolean(resource),
+  });
 
-  const reactTableProps = useReactTable<TData>({
-    data: data?.data ?? (fallbackEmptyArray as TData[]),
+  const reactTableProps = useReactTable<TQueryFnData>({
+    data: queryResult.data?.data ?? (fallbackEmptyArray as TQueryFnData[]),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: isServerSide ? undefined : getSortedRowModel(),
     getFilteredRowModel: isServerSide ? undefined : getFilteredRowModel(),
@@ -167,14 +269,16 @@ export function useTable<TData extends BaseRecord = BaseRecord>({
       columnFilters: filters.map((filter) => ({
         id: filter.field,
         value: filter.value,
+        is_permanent: Boolean(filter.is_permanent),
       })),
       sorting: sorters.map((sorter) => ({
         id: sorter.field,
         desc: sorter.order === "desc",
+        is_permanent: Boolean(sorter.is_permanent),
       })),
       ...reactTableOptions.initialState,
     },
-    pageCount: data?.metadata.total_page,
+    pageCount: queryResult.data?.metadata.total_page || -1,
     manualPagination: true,
     manualFiltering: isServerSide,
     manualSorting: isServerSide,
@@ -210,14 +314,22 @@ export function useTable<TData extends BaseRecord = BaseRecord>({
 
   useEffect(() => {
     if (!reactTableSorting) return;
-    const newSorters: CrudSort[] = reactTableSorting.map((sorting) => ({
-      field: sorting.id,
-      order: sorting.desc ? "desc" : "asc",
-    }));
+    const newSorters: CrudSort[] = reactTableSorting.map(
+      (sorting: ExtendedSorting) => ({
+        field: sorting.id,
+        order: sorting.desc ? "desc" : "asc",
+        is_permanent: Boolean(sorting.is_permanent),
+      }),
+    );
 
     providers?.sorters?.permanent?.forEach((permanentSorter) => {
-      if (!newSorters.find((s) => s.field === permanentSorter.field)) {
-        newSorters.push(permanentSorter);
+      const foundIndex = newSorters.findIndex(
+        (s) => s.field === permanentSorter.field,
+      );
+      if (foundIndex > -1) {
+        newSorters[foundIndex].is_permanent = true;
+      } else {
+        newSorters.push({ ...permanentSorter, is_permanent: true });
       }
     });
 
@@ -236,14 +348,22 @@ export function useTable<TData extends BaseRecord = BaseRecord>({
   useEffect(() => {
     if (!columnFilters) return;
 
-    const newFilters: CrudFilter[] = columnFilters.map((columnFilter) => ({
-      field: columnFilter.id,
-      value: columnFilter.value,
-    }));
+    const newFilters: CrudFilter[] = columnFilters.map(
+      (columnFilter: ExtendedColumnFilter) => ({
+        field: columnFilter.id,
+        value: columnFilter.value,
+        is_permanent: Boolean(columnFilter.is_permanent),
+      }),
+    );
 
     providers?.filters?.permanent?.forEach((permanentFilter) => {
-      if (!newFilters.find((f) => f.field === permanentFilter.field)) {
-        newFilters.push(permanentFilter);
+      const foundIndex = newFilters.findIndex(
+        (f) => f.field === permanentFilter.field,
+      );
+      if (foundIndex > -1) {
+        newFilters[foundIndex].is_permanent = true;
+      } else {
+        newFilters.push({ ...permanentFilter, is_permanent: true });
       }
     });
 
@@ -258,6 +378,44 @@ export function useTable<TData extends BaseRecord = BaseRecord>({
       }));
     }
   }, [columnFilters, columns]);
+
+  useEffect(() => {
+    if (!providers?.syncWithLocation) return;
+    const params = new URLSearchParams();
+    params.append("_page", String(pagination.currentPage));
+    params.append("_limit", String(pagination.pageSize));
+    sorters.forEach((sorter) => {
+      params.append(
+        "_sort",
+        `${sorter.order === "desc" ? "-" : ""}${sorter.field}`,
+      );
+    });
+
+    filters.forEach((filter) => {
+      const paramValue = filter.value;
+      if (typeof paramValue === "boolean" || typeof paramValue === "number") {
+        params.append(`${filter.field}`, String(paramValue));
+        return;
+      }
+
+      if (typeof paramValue === "string") {
+        const paramValues = paramValue.split(",");
+        paramValues.forEach((value) => {
+          params.append(`${filter.field}`, value);
+        });
+        return;
+      }
+
+      if (Array.isArray(paramValue)) {
+        paramValue.forEach((value) => {
+          params.append(`${filter.field}`, String(value));
+        });
+        return;
+      }
+    });
+
+    window.history.replaceState(null, "", `?${params.toString()}`);
+  }, [providers?.syncWithLocation, pagination, filters, sorters]);
 
   const setCurrentPage = (page: number) => {
     setPagination((prev) => ({
@@ -275,19 +433,13 @@ export function useTable<TData extends BaseRecord = BaseRecord>({
   return {
     reactTable: reactTableProps,
     core: {
-      tableQuery: {
-        data,
-        error,
-        isLoading,
-        isFetching,
-        isError,
-        refetch: () => setRefetch((prev) => !prev),
-      },
+      tableQuery: queryResult,
       result: {
-        data: data?.data ?? (fallbackEmptyArray as TData[]),
-        total: data?.metadata?.total_rows ?? 0,
+        data: queryResult.data?.data ?? (fallbackEmptyArray as TQueryFnData[]),
+        metadata: queryResult.data?.metadata,
+        total: queryResult.data?.metadata?.total_rows ?? 0,
       },
-      pageCount: data?.metadata?.total_page ?? 0,
+      pageCount: queryResult.data?.metadata?.total_page ?? 0,
       currentPage: pagination.currentPage ?? 1,
       pageSize: pagination.pageSize ?? 10,
       setCurrentPage,
@@ -299,13 +451,3 @@ export function useTable<TData extends BaseRecord = BaseRecord>({
     },
   };
 }
-
-export const useIsFirstRender = () => {
-  const firstRender = useRef(true);
-
-  useEffect(() => {
-    firstRender.current = false;
-  }, []);
-
-  return firstRender.current;
-};
