@@ -1,0 +1,72 @@
+import {
+  type UseMutationOptions,
+  type UseMutationResult,
+  useMutation,
+} from "@tanstack/react-query";
+import { dataProviders } from "@/src/providers/data";
+import type { CreateMetaQuery, DataProvider } from "@/src/providers/data/type";
+
+export type UseCreateProps<
+  TData = unknown,
+  TError extends MutationError = MutationError,
+  TVariables = unknown,
+  TOnMutateResult = unknown,
+> = {
+  dataProviderName?: keyof DataProviders;
+  resource: ExtractResourceKeys<DataProviders[keyof DataProviders]>;
+  meta?: CreateMetaQuery;
+} & Omit<
+  UseMutationOptions<TData, TError, TVariables, TOnMutateResult>,
+  "mutationFn"
+>;
+
+export type UseCreateReturnType<
+  TData = unknown,
+  TError extends MutationError = MutationError,
+  TVariables = unknown,
+  TOnMutateResult = unknown,
+> = UseMutationResult<TData, TError, TVariables, TOnMutateResult>;
+
+type DataProviders = typeof dataProviders;
+type ExtractResourceKeys<T> = T extends DataProvider<infer R> ? R : never;
+type MutationError = {
+  success: boolean;
+  message: string;
+  data?: unknown;
+  error?: unknown;
+};
+
+export function useCreate<
+  TData = unknown,
+  TError extends MutationError = MutationError,
+  TVariables = unknown,
+  TOnMutateResult = unknown,
+>({
+  dataProviderName = "default",
+  resource,
+  meta,
+  ...mutationOptions
+}: UseCreateProps<
+  TData,
+  TError,
+  TVariables,
+  TOnMutateResult
+>): UseCreateReturnType<TData, TError, TVariables, TOnMutateResult> {
+  const mutation = useMutation({
+    ...mutationOptions,
+    mutationFn: async (variables) => {
+      try {
+        const { data } = await dataProviders[dataProviderName].create({
+          resource,
+          variables: variables as Record<string, unknown>,
+          meta,
+        });
+        return { data } as TData;
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    },
+  });
+
+  return mutation;
+}

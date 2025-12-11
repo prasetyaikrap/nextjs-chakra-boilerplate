@@ -22,7 +22,7 @@
         "noExplicitAny": "info"
       },
       "correctness": {
-        "useExhaustiveDependencies": "warn"
+        "useExhaustiveDependencies": "info"
       },
       "performance": {
         "noAccumulatingSpread": "off"

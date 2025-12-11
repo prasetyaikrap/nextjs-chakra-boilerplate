@@ -1,4 +1,3 @@
-import type { AxiosInstance, AxiosRequestConfig } from "axios";
 import type { BaseKey } from "@/src/types/core";
 import type {
   CrudFilter,
@@ -19,15 +18,6 @@ export type AxiosMethodTypes =
   | "post"
   | "put"
   | "patch";
-
-export type ExtendedAxiosRequestConfig = {
-  routeParams?: Record<string, BaseKey>;
-} & AxiosRequestConfig;
-
-export type InitRestClientProps = {
-  baseUrl: string;
-  httpClient?: AxiosInstance;
-};
 
 export type ResponseBody<TData = unknown> = {
   success: boolean;
@@ -57,12 +47,17 @@ export type BaseAxiosClientResponse<T = unknown> = {
   headers: Headers;
 };
 
-export type MetaQuery = {
-  transformFilters?: (filters?: CrudFilters) => CrudFilters;
-  transformSorters?: (sorters?: CrudSorting) => CrudSorting;
-  paginationMode?: "default" | "per_page" | "cursor" | "infinite" | "none";
-  filterMode?: "default";
-} & Record<string, any>;
+export type MetaQuery = Record<string, any>;
+export type GetListMetaQuery = MetaQuery & {
+  filterMode?: "and" | "or";
+  transformFilters?: (filters: CrudFilters) => CrudFilters;
+  transformSorters?: (sorters: CrudSorting) => CrudSorting;
+  paginationMode?: "server" | "client" | "infinite" | "none" | "cursor";
+};
+export type GetOneMetaQuery = MetaQuery;
+export type CreateMetaQuery = MetaQuery;
+export type UpdateMetaQuery = MetaQuery;
+export type DeleteMetaQuery = MetaQuery;
 
 export type DataProvider<TResource extends string = string> = {
   getList: (params: GetListParams<TResource>) => Promise<GetListResponse>;
@@ -99,13 +94,15 @@ type UpdateParams<
   TVariables = Record<string, unknown>,
 > = {
   resource: TResource;
-  id: BaseKey;
   variables: TVariables;
   meta?: MetaQuery;
 };
-type DeleteParams<TResource extends string = string> = {
+type DeleteParams<
+  TResource extends string = string,
+  TVariables = Record<string, unknown>,
+> = {
   resource: TResource;
-  id: BaseKey;
+  variables: TVariables;
   meta?: MetaQuery;
 };
 

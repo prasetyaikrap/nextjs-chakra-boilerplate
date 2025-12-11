@@ -1,7 +1,8 @@
 import { Container } from "@chakra-ui/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
-import { UISystemProvider } from "@/src/components/ui/provider";
+import QueryClientProviders from "./queryclient-provider";
+import { UISystemProvider } from "./ui-system-provider";
 
 type AppProvidersProps = {
   children: ReactNode;
@@ -17,19 +18,21 @@ export default async function AppProviders({
 }: Readonly<AppProvidersProps>) {
   return (
     <NextIntlClientProvider locale={currentLocale} messages={messages}>
-      <UISystemProvider>
-        <Container
-          minHeight="100vh"
-          maxWidth="2560px"
-          px="0"
-          transition="all ease .5s"
-          _light={{
-            bg: "white",
-          }}
-        >
-          {children}
-        </Container>
-      </UISystemProvider>
+      <QueryClientProviders>
+        <UISystemProvider>
+          <Container
+            minHeight="100vh"
+            maxWidth="2560px"
+            px="0"
+            transition="all ease .5s"
+            _light={{
+              bg: "white",
+            }}
+          >
+            {children}
+          </Container>
+        </UISystemProvider>
+      </QueryClientProviders>
     </NextIntlClientProvider>
   );
 }
