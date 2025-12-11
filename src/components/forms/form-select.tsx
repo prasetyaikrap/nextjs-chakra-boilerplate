@@ -50,11 +50,20 @@ export function FormSelect({
   const {
     watch,
     control,
-    formState: { errors },
+    formState: { errors, defaultValues },
   } = formProps;
+  const [initialOptions] = useState<BaseSelectOptions[]>(() => {
+    if (!defaultValues?.[id] || !Array.isArray(defaultValues?.[id]))
+      return options;
+    const currentValues = defaultValues?.[id] as BaseSelectOptions[];
+    const optionsFromFormValue = currentValues.filter(
+      (opt) => !options.some((o) => o.value === opt.value),
+    );
+    return [...options, ...optionsFromFormValue];
+  });
 
   const selectOptions = createListCollection({
-    items: options.map((opt) => ({
+    items: initialOptions.map((opt) => ({
       value: opt.value,
       label: opt.label,
       description: opt.description || "",

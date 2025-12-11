@@ -63,13 +63,23 @@ export function FormCombobox({
 }: FormComboboxProps) {
   const {
     watch,
-    formState: { errors },
+    formState: { errors, defaultValues },
     control,
   } = formProps;
 
+  const [initialOptions] = useState<BaseSelectOptions[]>(() => {
+    if (!defaultValues?.[id] || !Array.isArray(defaultValues?.[id]))
+      return options;
+    const currentValues = defaultValues?.[id] as BaseSelectOptions[];
+    const optionsFromFormValue = currentValues.filter(
+      (opt) => !options.some((o) => o.value === opt.value),
+    );
+    return [...options, ...optionsFromFormValue];
+  });
+
   const { contains } = useFilter({ sensitivity: "base" });
   const { collection, filter, set } = useListCollection({
-    initialItems: options,
+    initialItems: initialOptions,
     filter: contains,
     limit: limit,
   });
